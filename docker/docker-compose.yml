@@ -52,6 +52,8 @@ services:
       - activemq
     networks:
       - activemq-network
+    volumes:
+      - fastapi-app-logs:/app/logs
 
   fastapi-consumer1:
     build: ../fastapi-consumer
@@ -70,6 +72,8 @@ services:
       - activemq
     networks:
       - activemq-network
+    volumes:
+      - fastapi-consumer1-logs:/app/logs
 
   fastapi-consumer2:
     build: ../fastapi-consumer
@@ -88,11 +92,61 @@ services:
       - activemq
     networks:
       - activemq-network
+    volumes:
+      - fastapi-consumer2-logs:/app/logs
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.0
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    networks:
+      - activemq-network
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.12.0
+    container_name: kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    networks:
+      - activemq-network
+    depends_on:
+      - elasticsearch
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.12.0
+    container_name: filebeat
+    volumes:
+      - fastapi-app-logs:/app-logs/fastapi-app
+      - fastapi-consumer1-logs:/app-logs/fastapi-consumer1
+      - fastapi-consumer2-logs:/app-logs/fastapi-consumer2
+      - ./filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+    networks:
+      - activemq-network
+    depends_on:
+      - elasticsearch
+      - kibana
 
 volumes:
   activemq-data:
     driver: local
   activemq-logs:
+    driver: local
+  esdata:
+    driver: local
+  fastapi-app-logs:
+    driver: local
+  fastapi-consumer1-logs:
+    driver: local
+  fastapi-consumer2-logs:
     driver: local
 
 networks:

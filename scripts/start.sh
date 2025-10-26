@@ -21,6 +21,6 @@ fi
 # Iniciar ActiveMQ
 
 echo "Iniciando ActiveMQ..."
-docker compose -f "$COMPOSE_FILE" up -d
+docker compose -f "$COMPOSE_FILE" up -d --build
 
 echo "ActiveMQ iniciado. Accede a la consola web en http://localhost:8161/admin"

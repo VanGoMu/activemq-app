@@ -227,6 +227,49 @@ docker-compose up -d
    docker compose down
    ```
 
+## 📊 Logging, Monitoring & Kibana Integration
+
+This project includes full logging and monitoring with the ELK stack (Elasticsearch, Logstash, Kibana) and Filebeat.
+
+### How it works
+- All FastAPI apps log requests and events in JSON format to `/app/logs/app.log`.
+- Filebeat collects logs from all apps and sends them to Elasticsearch.
+- Kibana provides dashboards and search for all logs and events.
+
+### How to use
+1. Build and start all services:
+   ```sh
+   cd docker
+   docker compose up --build -d
+   ```
+2. Access Kibana:
+   - URL: [http://localhost:5601](http://localhost:5601)
+   - Default index: filebeat-*
+   - Search, filter, and create dashboards for all FastAPI events.
+3. All logs are stored in Elasticsearch and visible in Kibana.
+
+### How logging is implemented
+- Each FastAPI app uses `json-log-formatter` to write logs in JSON format.
+- Logs are written to `/app/logs/app.log` (mounted as a Docker volume).
+- Example log entry:
+  ```json
+  {
+    "event": "message_sent",
+    "queue": "/queue/test.queue",
+    "body": "Hello from FastAPI!",
+    "client": "172.18.0.1"
+  }
+  ```
+- Filebeat is configured to read logs from all apps and send them to Elasticsearch.
+
+### How to extend
+- You can add more fields to logs (user, endpoint, status, etc).
+- You can create custom dashboards in Kibana for API usage, errors, performance, etc.
+
+### Troubleshooting
+- If logs do not appear in Kibana, check Filebeat and Elasticsearch containers for errors.
+- Make sure the log files are being written and mounted correctly.
+
 ## 📝 Notes
 - You can scale consumers by adding more services in `docker-compose.yml` with different `SERVICE_ID` and ports.
 - All services are connected via the same Docker network for easy communication.

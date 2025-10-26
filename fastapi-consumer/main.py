@@ -1,6 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 import stomp
 import os
+import logging
+import datetime
+from logging_config import logger
 
 app = FastAPI()
 
@@ -12,7 +15,7 @@ QUEUE_NAME = os.getenv("ACTIVEMQ_QUEUE", "/queue/test.queue")
 SERVICE_ID = os.getenv("SERVICE_ID", "Consumer")
 
 @app.get("/consume")
-def consume_message():
+def consume_message(request: Request):
     conn = stomp.Connection12([(ACTIVEMQ_HOST, ACTIVEMQ_PORT)])
     conn.connect(ACTIVEMQ_USER, ACTIVEMQ_PASS, wait=True)
     messages = []
@@ -25,7 +28,20 @@ def consume_message():
     import time
     time.sleep(2)  # Wait for message
     if messages:
+        logger.info({
+            "event": "message_consumed",
+            "service": SERVICE_ID,
+            "message": messages[0],
+            "client": request.client.host,
+            "@timestamp": datetime.datetime.utcnow().isoformat() + "Z"
+        })
         return {"service": SERVICE_ID, "message": messages[0]}
     else:
         conn.disconnect()
+        logger.info({
+            "event": "no_message",
+            "service": SERVICE_ID,
+            "client": request.client.host,
+            "@timestamp": datetime.datetime.utcnow().isoformat() + "Z"
+        })
         return {"service": SERVICE_ID, "message": None, "info": "No message received"}
