@@ -1,0 +1,100 @@
+services:
+  activemq:
+    image: apache/activemq-classic:latest
+    container_name: activemq
+    ports:
+      # Web Console
+      - "${ACTIVEMQ_WEB_PORT:-8161}:8161"
+      # OpenWire protocol
+      - "${ACTIVEMQ_OPENWIRE_PORT:-61616}:61616"
+      # AMQP protocol
+      - "${ACTIVEMQ_AMQP_PORT:-5672}:5672"
+      # STOMP protocol
+      - "${ACTIVEMQ_STOMP_PORT:-61613}:61613"
+      # MQTT protocol
+      - "${ACTIVEMQ_MQTT_PORT:-1883}:1883"
+      # WebSocket
+      - "${ACTIVEMQ_WS_PORT:-61614}:61614"
+    environment:
+      - ACTIVEMQ_ADMIN_LOGIN=${ACTIVEMQ_ADMIN_LOGIN:-admin}
+      - ACTIVEMQ_ADMIN_PASSWORD=${ACTIVEMQ_ADMIN_PASSWORD:-admin}
+      - ACTIVEMQ_CONFIG_MINMEMORY=${ACTIVEMQ_MIN_MEMORY:-512}
+      - ACTIVEMQ_CONFIG_MAXMEMORY=${ACTIVEMQ_MAX_MEMORY:-2048}
+    volumes:
+      # Persistencia de datos
+      - activemq-data:/opt/apache-activemq/data
+      # Logs
+      - activemq-logs:/opt/apache-activemq/logs
+      # Configuración personalizada (opcional)
+      # - ./config/activemq.xml:/opt/apache-activemq/conf/activemq.xml
+    restart: unless-stopped
+    networks:
+      - activemq-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8161 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  fastapi-app:
+    build: ../fastapi-app
+    container_name: fastapi-app
+    ports:
+      - "8000:8000"
+    environment:
+      - ACTIVEMQ_HOST=activemq
+      - ACTIVEMQ_STOMP_PORT=61613
+      - ACTIVEMQ_ADMIN_LOGIN=admin
+      - ACTIVEMQ_ADMIN_PASSWORD=admin
+      - ACTIVEMQ_QUEUE=/queue/test.queue
+    depends_on:
+      - activemq
+    networks:
+      - activemq-network
+
+  fastapi-consumer1:
+    build: ../fastapi-consumer
+    container_name: fastapi-consumer1
+    ports:
+      - "8001:8001"
+    environment:
+      - ACTIVEMQ_HOST=activemq
+      - ACTIVEMQ_STOMP_PORT=61613
+      - ACTIVEMQ_ADMIN_LOGIN=admin
+      - ACTIVEMQ_ADMIN_PASSWORD=admin
+      - ACTIVEMQ_QUEUE=/queue/test.queue
+      - SERVICE_ID=Consumer1
+      - PORT=8001
+    depends_on:
+      - activemq
+    networks:
+      - activemq-network
+
+  fastapi-consumer2:
+    build: ../fastapi-consumer
+    container_name: fastapi-consumer2
+    ports:
+      - "8002:8002"
+    environment:
+      - ACTIVEMQ_HOST=activemq
+      - ACTIVEMQ_STOMP_PORT=61613
+      - ACTIVEMQ_ADMIN_LOGIN=admin
+      - ACTIVEMQ_ADMIN_PASSWORD=admin
+      - ACTIVEMQ_QUEUE=/queue/test.queue
+      - SERVICE_ID=Consumer2
+      - PORT=8002
+    depends_on:
+      - activemq
+    networks:
+      - activemq-network
+
+volumes:
+  activemq-data:
+    driver: local
+  activemq-logs:
+    driver: local
+
+networks:
+  activemq-network:
+    driver: bridge
